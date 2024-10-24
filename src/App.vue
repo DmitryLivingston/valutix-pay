@@ -1,5 +1,10 @@
 <template>
-  <Header v-if="this.$route.name !== 'special'"/>
+  <Header 
+    v-if="this.$route.name !== 'special'"
+    :urlParams="urlParams"
+    :merchant="merchant"
+    :laying="laying"
+  />
   <router-view
   :balances="balances"
   :currencies="currencies"
@@ -12,6 +17,8 @@
   :myHistory="myHistory"
   :refillBalance="refillBalance"
   @login_user="login_user"
+  @paramsFromInvoice="paramsFromInvoice"
+  @urlParams="getUrlParamsFromLogin"
   />
   <VerificationModal
   :user="user"
@@ -41,13 +48,14 @@
           myHistory: [],
           currency: '',
           currency_balance: 1,
-          refillBalance: false,
+          refillBalance: sessionStorage.getItem("refillBalance") || false,
           limits: {
             'day_limit': this.user?.status?.id !== 3 ? 10000 : 700000,
             'mounth_limit': this.user?.status?.id !== 3 ? 50000 : 3000000,
-            'my_day_limit': this.user?.status?.id !== 3 ? 10000 : 700000,
-            'my_mounth_limit': this.user?.status?.id !== 3 ? 50000 : 3000000
-          }
+            'my_day_limit': 0,
+            'my_mounth_limit': 0
+          },
+          laying: false,
 
         }
     },
@@ -75,7 +83,6 @@
       },
       //getUser
       getUser() {
-        // if (sessionStorage.getItem('user_ID')) {
           this.emitter.emit('turnOnPusher');
           this.onLoadUser = true;
           return axios
@@ -91,10 +98,6 @@
               this.$globalState.status_id = this.user.status.id;
               this.balances = response.data.data.balances;
               this.currency_balance = this.balances?.find(b => b.title == this.currency)?.value
-              // this.cards = response.data.data.cards;
-              // this.cardsCount = this.cards.length;
-              // this.wallets = response.data.data.wallets;
-              // this.walletsCount = this.wallets.length;
               this.onLoadUser = false;
             })
             .catch((error) => {
@@ -104,21 +107,45 @@
         // }
       },
 
-      //getParams
-      getParams() {
-        var myUrlParams = JSON.parse(sessionStorage.getItem('urlParams'));
-          if (!myUrlParams || (Object.keys(myUrlParams).length === 0)) {
-              const searchParams = new URLSearchParams(window.location.search);
-              const params = {};
-            for (const [key, value] of searchParams.entries()) {
-              params[key] = value;
+      getUrlParamsFromLogin(data) {
+        this.urlParams = data;
+        this.getFullInfo();
+      },
+
+        //getParams
+        getParams() {
+            var myUrlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+            if (!myUrlParams || (Object.keys(myUrlParams).length === 0)) {
+                console.log('Параметров в сессии нет, пытаемся получить');
+                const searchParams = new URLSearchParams(window.location.search);
+                const params = {};
+                for (const [key, value] of searchParams.entries()) {
+                    params[key] = value;
+                }
+                console.log('Получили эти параметры', params);
+                sessionStorage.setItem('urlParams', JSON.stringify(params));
+                this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+                this.$emit('urlParams', this.urlParams);
+            } else {
+                console.log('Параметры в сессии есть');
+                this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+                console.log('Вот параметры из сессии', this.urlParams);
             }
-            sessionStorage.setItem('urlParams', JSON.stringify(params));
-            this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
-          }
-          else {
-            this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
-          }
+
+            if (!this.urlParams.merchant_token) {
+              if(window.location.pathname !== '/special') {
+                this.$router.push("/no-param");
+              }
+            }
+        },
+
+      //paramsFromInvoice
+      paramsFromInvoice(data) {
+        // this.urlParams.merchant_token = data.merchant_token;
+        this.urlParams.summ = data.amount;
+        this.urlParams.payment_id = data.payment_id;
+        sessionStorage.setItem('urlParams', JSON.stringify(this.urlParams));
+        this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
       },
         //getMerchant
         getMerchant() {
@@ -147,6 +174,8 @@
             })
             .then((response) => {
                 this.mylimits = response.data.data;
+                this.limits.my_day_limit = this.mylimits.at_days_limit
+                this.limits.my_mounth_limit = this.mylimits.at_month_limit
             })
             .catch((error) => {
               console.error("Ошибка получения лимитов:", error);
@@ -182,7 +211,7 @@
 
        //Получаем название валюты
       getCurrencyTitle() {
-        this.currency = this.currencies?.find(c => c.id == this.merchant?.currency_id)?.short_title;
+        this.currency = this.currencies?.find(c => c.id == this.merchant?.currency?.id)?.short_title;
         console.log(this.currencies, this.merchant, this.currency);
       },
       async getFullInfo() {
@@ -192,37 +221,82 @@
       }
     },
 
+    watch: {
+        'user.status': function(newValue, oldValue) {
+            if (newValue !== oldValue) {
+              this.limits.day_limit = this.user?.status?.id !== 3 ? 10000 : 700000;
+              this.limits.mounth_limit =  this.user?.status?.id !== 3 ? 50000 : 3000000;
+            }
+        }
+    },
+
     created() {
-      this.getParams();
-      if(!sessionStorage.getItem('user_token')) {
+      if((window.location.pathname == '/special')) {
+        sessionStorage.clear();
+        localStorage.clear();
+      }
+      if((window.location.pathname == '/account' || window.location.pathname == '/invoice')) {
+        this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+        console.log('this.urlParams', this.urlParams);
         this.getFullInfo();
       }
-      if (!this.urlParams || (Object.keys(this.urlParams).length === 0)) {
-        this.$router.push("/no-param");
-      }
+
       if(sessionStorage.getItem('user_token')) {
         this.getInfo();
       };
-      this.emitter.on('balanceUpdate', (pusherInfo) => {
-        console.log('pusherInfo', pusherInfo);
-        this.balances = pusherInfo;
+      this.emitter.on('balanceUpdate', (balance) => {
+        console.log('balance', balance);
+        console.log('balancesss', this.balances);
+        // this.balances = pusherInfo;
+        let index = this.balances.findIndex(b => b.id == balance.id);
+          if(index == -1) {
+            return;
+          }
+      this.balances[index].value = balance.value;
+      this.balances[index].frozen_value = balance.frozen_value;
+      this.currency_balance = this.balances?.find(b => b.title == this.currency)?.value
+      this.getLimits();
       });
 
-      this.emitter.on("historyUpdate", () => {
-        this.getPayments();
-      });
+      console.log('вот', this.urlParams);
     },
     mounted() { 
+      // if(this.$route.name == 'login') {
+      //   sessionStorage.clear();
+      // }
       this.emitter.on("finish_timer", () => {
         sessionStorage.clear();
         this.urlParams = false;
         this.$router.push("/finish");
       });
-      this.emitter.on("reloadUser", () => {
-        this.getUser();
+      this.emitter.on("userUpdate", (data) => {
+        if(data.id == this.user.id) {
+          this.user = data;
+          this.getLimits();
+        if(this.user.status.id == 5) {
+          this.logout();
+        }
+      }
       });
-      this.emitter.on("debit", () => {
-        this.refillBalance = true;
+      this.emitter.on("merchantPaymentUpdate", (data) => {
+        if(data.status == 'Успех' || data.status == 'Отмена') {
+          sessionStorage.setItem("step", 4);
+          sessionStorage.setItem("laying", true);
+          this.$router.push("/invoice");
+          this.laying = true;
+          // setTimeout(() => {
+          //   this.$router.push("/special");
+          // }, 10000);
+      }
+      });
+
+      this.emitter.on("just_refill_balance", (data) => {
+        this.refillBalance = data;
+        sessionStorage.setItem("refillBalance", data);
+      });
+
+      this.emitter.on("historyUpdate", () => {
+        this.getPayments();
       });
     }
   }

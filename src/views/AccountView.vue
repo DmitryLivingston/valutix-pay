@@ -8,16 +8,16 @@
               <span class="mb-2">Баланс</span>
               <span>{{currency_balance}} {{currency}}</span>
             </div>
-            <button class="bg_lightgreen ms-auto justify-content-center gap-2 p-4 d-flex flex-column border-0" @click="go_next_debit()">
+            <button class="bg_lightgreen ms-auto justify-content-center gap-2 p-4 d-flex flex-column border-0" @click="just_refill_balance()">
               <img width="30" height="31" src="/static/img/operation-arrow.svg" class="ms-auto">
-              <span class="add_balance">Пополнить баланс</span>
+              <span class="add_balance" v-if="!laying">Пополнить баланс</span>
             </button>
           </div>
-          <div class="invoice_card position-relative card border-0 bg_green text-light p-4">
+          <div class="invoice_card position-relative card border-0 bg_green text-light p-4" v-if="!laying">
             <div class="invoice_card_top d-flex justify-content-between align-items-center">
               <div class="d-flex flex-column gap-1">
                 <h5 class="h5 mb-0">Счёт на оплату №{{ urlParams.payment_id }}</h5>
-                <span>Оплата сервиса <a target="_blank" class="text-green" href="#">{{merchant.title}}</a></span>
+                <span>Оплата сервиса <span class="text-green">{{merchant.title}}</span></span>
               </div>
               <div class="d-flex flex-column align-items-center gap-1">
                 <timer/>
@@ -26,7 +26,10 @@
             <div class="invoice_card_bottom d-flex flex-column">
               <span class="mb-1">Сумма к оплате</span>
               <h5 class="h5 mb-3">{{ urlParams.summ }} {{currency}}</h5>
-              <button class="button w-100 mw-100" @click="go_next()">Оплатить счет</button>
+              <button class="button w-100 mw-100" @click="go_next()" v-if="!waitingMerchantPayment">Оплатить счет</button>
+              <div class="spinner-border text-success m-auto" role="status" v-if="waitingMerchantPayment">
+                <span class="visually-hidden">Loading...</span>
+              </div>
             </div>
           <span class="text_green under_invoce_card_text">Чтобы оплатить счет пополните баланс</span>
 
@@ -67,6 +70,7 @@
     </div>
   </section>
   <History
+  v-if="myHistory"
   :myHistory="myHistory"
   :currencies="currencies"
   />
@@ -81,21 +85,62 @@ export default {
     History,
     timer
   },
+  data: () => ({
+    waitingMerchantPayment: false,
+    laying: Boolean(sessionStorage.getItem("laying")),
+  }),
   methods: {
     go_next() {
-      if(this.urlParams?.summ > this.currency_balance) {
-        this.emitter.emit('debit');
+      if(parseFloat(this.urlParams?.summ) <= parseFloat(this.currency_balance)) {
+        this.postDebit();
       }
-      this.$router.push('/invoice');
+      if(parseFloat(this.urlParams?.summ) > parseFloat(this.currency_balance)) {
+        this.$router.push('/invoice');
+        this.emitter.emit('just_refill_balance', '');
+      }
 
     },
-    go_next_debit() {
-      console.log('отправляю');
-      this.emitter.emit('debit');
+    just_refill_balance() {
+      console.log('Refill');
+      this.emitter.emit('just_refill_balance', true);
       this.$router.push('/invoice');
+    },
+      //Списать с баланса
+      postDebit() {
+            let formData = new FormData();
+            // formData.append("amount", this.urlParams.summ);
+            // formData.append("currency_id", this.merchant?.currency?.id);
+            // formData.append('merchant_token', this.urlParams.merchant_token);
+            formData.append("user_id", this.$globalState.user_ID);
+            formData.append("merchant_payment_id", this.urlParams?.id);
+            formData.append("token", this.$globalState.user_token);
+            return axios.post(`${this.$api_address}/casino_debit`, formData, {
+              validateStatus: function (status) {
+                        return status < 500; // Resolve only if the status code is less than 500
+                    }
+                }).then(response => {
+                      if(response.data.message) {
+                        alert(response.data.message);
+                      }
+                      else {
+                        this.waitingMerchantPayment = true;
+                      }
+                }) .catch((error) => {
+                    this.request_error = true;
+                    console.error("Error fetching user:", error);
+                });
+        },
+  },
+  created() {
+    if(!this.urlParams.merchant_token) {
+      this.$router.push('/no-param');
     }
+    sessionStorage.setItem("step", 1);
+    sessionStorage.removeItem('request_error');
+    sessionStorage.removeItem('lastStep');
   }
 }
+
 </script>
 
 <style scoped>

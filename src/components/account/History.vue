@@ -6,7 +6,7 @@
         <div v-if="paginatedElements?.length == 0">
             <p class="text-light fz-16 no-active text-center p-3">Вы не проводили оплаты</p>
         </div>
-        <div class="accordion" id="pays_history_accordeon">
+        <div class="accordion" id="pays_history_accordeon" v-else>
             <div v-for="item in paginatedElements" :key="item.id" class="accordion-item bg-transparent border_green">
               <h2 class="accordion-header" :id="'heading' + item?.id">
                 <button class="accordion-button shadow-none flex-row align-items-baseline bg-transparent text-light flex-nowrap collapsed" type="button" data-bs-toggle="collapse" :data-bs-target="'#collapse' + item?.id" aria-expanded="false" :aria-controls="'collapse' + item?.id">
@@ -15,7 +15,7 @@
                             <img src="/static/img/history_img.svg">
                         </div>
                         <div class="p-0 col-12 col-lg-6 order-3 order-lg-2">{{item?.payment?.operation_title}}</div>
-                        <div class="p-0 col col-lg-2 order-1">{{ parseFloat(item?.payment?.cryptocurrency_amount).toFixed(currencies.find(c => c.id == item?.payment?.currency_id).count_after_point) }} {{currencies?.find(c => c.id === item?.payment?.currency_id).short_title}}</div>
+                        <div class="p-0 col col-lg-2 order-1" >{{ parseFloat(item?.payment?.currency_amount ?? item?.payment?.amount).toFixed(item?.payment?.currency?.count_after_point ?? item?.payment?.withdrawal?.currency?.count_after_point) }} {{item?.payment?.currency?.short_title ?? item?.payment?.withdrawal?.currency?.short_title}}</div>
                         <div class="p-0 col order-2 order-lg-3 text-end me-2"
                         :class="{
                             'danger': item?.payment?.status == 'Отмена',
@@ -29,17 +29,8 @@
                 <div class="accordion-body bg_green text-light">
                     <div class="row m-0 mb-1">
                         <div class="p-0 col-12 col-lg-2 fz-16">ID</div>
-                        <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.outer_id }}</div>
+                        <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.outer_id ?? item?.payment?.id }}</div>
                     </div>
-                    <div class="row m-0 mb-1">
-                        <div class="p-0 col-12 col-lg-2 fz-16">Ссылка</div>
-                        <div class="p-0 col-12 col-lg fz-16"><a target="_blank" :href="item?.payment?.payment_link" class="text-decoration-none text-light my_link">{{ item?.payment?.payment_link }}</a></div>
-                    </div>
-                    <div class="row m-0 mb-1">
-                        <div class="p-0 col-12 col-lg-2 fz-16">Комментарий</div>
-                        <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.comment }} </div>
-                    </div>
-
                     <div class="row m-0"  v-if="item?.payment?.status === 'Отмена'">
                         <div class="p-0 col-12 col-lg-2 fz-16">Отмена</div>
                         <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.cancellation_message }}</div>
@@ -47,15 +38,15 @@
                     <template v-if="item?.payment?.status === 'Успех'">
                         <div class="row m-0 mb-1">
                             <div class="p-0 col-12 col-lg-2 fz-16">Списано</div>
-                            <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.usdt_amount }} USDT</div>
+                            <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.amount }} {{item?.payment?.currency?.short_title ?? item?.payment?.withdrawal?.currency?.short_title}}</div>
                         </div>
                         <div class="row m-0 mb-1">
                             <div class="p-0 col-12 col-lg-2 fz-16">Баланс до</div>
-                            <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.balance_before }} USDT</div>
+                            <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.balances.before }} {{item?.payment?.currency?.short_title ?? item?.payment?.withdrawal?.currency?.short_title}}</div>
                         </div>
                         <div class="row m-0 mb-1">
                             <div class="p-0 col-12 col-lg-2 fz-16">Баланс после</div>
-                            <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.balance_after }} USDT</div>
+                            <div class="p-0 col-12 col-lg fz-16">{{ item?.payment?.balances.after }} {{item?.payment?.currency?.short_title ?? item?.payment?.withdrawal?.currency?.short_title}}</div>
                         </div>
                         <div class="row m-0 mb-1">
                             <div class="p-0 col-12 col-lg-2 fz-16">Взято в работу</div>
@@ -65,9 +56,9 @@
                             <div class="p-0 col-12 col-lg-2 fz-16">Завершено</div>
                             <div class="p-0 col-12 col-lg fz-16">{{ moment(item?.payment?.updated_at).format("DD-MM-YYYY HH:mm") }}</div>
                         </div>
-                        <div class="row mt-2 m-0">
+                        <!-- <div class="row mt-2 m-0">
                             <div class="p-0 col-12 fz-16"><a download :href="item?.payment?.proof">Скачать чек об оплате</a></div>
-                        </div>
+                        </div> -->
                     </template>
 
                 </div>
@@ -117,17 +108,17 @@
 
     computed: {
         totalChecksCount() {
-            return this.myHistory.length;
+            return this.myHistory?.length;
         },
-    paginatedElements() {
-        const start = (this.page - 1) * this.perPage;
-        const end = start + this.perPage;
-        return Object.values(this.myHistory).slice(start, end);
-    },
-    totalPages() {
-        const pages = Math.ceil(this.totalChecksCount / this.perPage);
-        return pages > 0 ? pages : 1;
-    },
+        paginatedElements() {
+            const start = (this.page - 1) * this.perPage;
+            const end = start + this.perPage;
+            return Object.values(this.myHistory).slice(start, end);
+        },
+        totalPages() {
+            const pages = Math.ceil(this.totalChecksCount / this.perPage);
+            return pages > 0 ? pages : 1;
+        },
     },
 
     methods: {
@@ -139,6 +130,12 @@
                 console.error('Failed to read from clipboard:', error);
             }
         },
+
+        localTime(time){
+                var testDateUtc = moment.utc(time);
+                var localDate = moment(testDateUtc).local();
+                return localDate.format("DD-MM-YYYY HH:mm");
+            },
 
         // timeHistory() {
         //     let i = 0;

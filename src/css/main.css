@@ -506,4 +506,8 @@ h6 {
     .custom_form_card {
         padding: 20px;
     }
+    .invoice_header_card img {
+        width: 15px;
+        height: 15px;
+    }
 }

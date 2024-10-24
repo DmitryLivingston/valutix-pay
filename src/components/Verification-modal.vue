@@ -7,13 +7,11 @@
               <button type="button" class="btn-close text-light shadow-none" data-bs-dismiss="modal" aria-label="Close" @click="clear"></button>
             </div>
             <div class="modal-body">
-                  <div class="mb-3">
-                    <input placeholder="Введите e-mail" autocomplete="email" type="email" class="form-control shadow-none" id="ver_mail" v-model="mail" @focus="errorMail = false">
-                    <div class="form-text text_warning" v-if="errorMail">{{errorMail}}</div>
+                  <div class="mb-3" v-if="user.email">
+                    <span>{{user.email}}</span>
                   </div>
-                  <div class="mb-3">
-                    <input placeholder="Введите номер" autocomplete="tel" type="tel" class="form-control shadow-none" id="ver_phone" v-model="phone" @focus="errorPhone = false">
-                    <div class="form-text text_warning" v-if="errorPhone">{{errorPhone}}</div>
+                  <div class="mb-3" v-if="user.phone_number">
+                    <span>{{user.phone_number}}</span>
                   </div>
                   <div class="mb-3">
                     <input type="text" class="form-control shadow-none" id="ver_fio" v-model="fio" placeholder="ФИО">
@@ -92,8 +90,6 @@ export default {
             pass2: '',
             errors: false,
             fio: this.user?.full_name,
-            mail: this.user?.email,
-            phone: this.user?.phone_number,
             maxSize: 5242880,
         }
     },
@@ -136,8 +132,8 @@ export default {
 
         send() {
                 let formData = new FormData();
-                formData.append("mail", this.mail);
-                formData.append("phone_number", this.phone);
+                formData.append("mail", this.user?.email);
+                formData.append("phone_number", this.user?.phone_number);
                 formData.append("full_name", this.fio);
                 formData.append("main_passport_image", this.pass1);
                 formData.append("registration_passport_image", this.pass2);
@@ -165,8 +161,6 @@ export default {
         },
 
         clear() {
-            this.mail = '';
-            this.phone = '';
             this.fio = '';
             this.pass1 = '';
             this.pass2 = '';

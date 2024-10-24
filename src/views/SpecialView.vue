@@ -2,7 +2,7 @@
               <section class="pay_order pt-5">
                 <div class="container">
                   <div class="main_header flex_between gap-10">
-                    <h1>Тестовый платёж</h1>
+                    <h1>Страница мерчанта</h1>
                   </div>
                   <div class="order_form">
                     <div class="order_form__item gap-10">
@@ -17,7 +17,7 @@
                     </div>
                   </div>
                   <div class="i_payed_button flex_center">
-                    <button class="button" @click="navigateToSumm">Перейти</button>
+                    <button class="button" @click="createInvoice">Перейти</button>
                   </div>
                 </div>
               </section>
@@ -28,13 +28,41 @@
               data() {
                 return {
                  summ: 0,
+                 merchant_token: '2a6e1dde2144efa75f1dcf7137446919e65cc2571134c924621d87eec9fd38e1',
+                 id: ''
                 };
               },
               methods: {
                 navigateToSumm() {
-                  this.$router.push({ path: '/login', query: { summ: this.summ } });
-                }
-              }
+                  this.$router.push({ path: '/login', query: { 
+                    merchant_token: this.merchant_token,
+                    id: this.id
+                  } });
+                },
+
+                createInvoice() {
+                  let formData = new FormData();
+                  formData.append("amount", this.summ);
+                  formData.append('merchant_token', this.merchant_token);
+                  formData.append("user_id", 3);
+                  formData.append("payment_id", 108);
+                  return axios.post(`${this.$api_address}/merchant_payments`, formData, {
+                          headers: {
+                              'Content-Type': 'application/json'
+                          }
+                      }).then(response => {
+                          this.id = response.data.data.id;
+                          this.navigateToSumm();
+                      }) .catch((error) => {
+                          this.request_error = true;
+                          console.error("Error fetching user:", error);
+                      });
+                },
+              },
+              // created() {
+              //   sessionStorage.clear();
+              //   localStorage.clear();
+              // }
             };
             </script>
 

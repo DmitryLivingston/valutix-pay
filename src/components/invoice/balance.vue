@@ -2,7 +2,7 @@
     <div class="balance card d-flex flex-row justify-content-between overflow-hidden text-light p-3">
         <div class="d-flex flex-column balance_info">
             <h6 class="m-0 fs-5 mb-2">Баланс</h6>
-            <h5 class="h5 mb-1 limit_amount">{{currency_balance}} {{currency}}</h5>
+            <h5 class="h5 mb-1 limit_amount"><span class="cut">{{currency_balance}}</span> {{currency}}</h5>
         </div>
         <div class="d-flex flex-column align-items-end">
             <div class="d-flex align-items-center gap-2 mb-2">
@@ -11,7 +11,7 @@
                   </div>
                 <h6 class="m-0 fs-5">Лимит</h6>
             </div>
-            <h5 class="h5 mb-0 mb-lg-2 ">{{ limits?.my_day_limit }} {{currency}}</h5>
+            <h5 class="h5 mb-0 mb-lg-2"><span class="cut">{{ limits?.my_day_limit }}</span> {{currency}}</h5>
             <h6 class="m-0 fs-5 mb-fs-5">Из {{ limits?.day_limit }} {{currency}} / сутки</h6>
             <div :class="user.status?.id !== 3 ? 'text_warning' : 'text-green'" class="d-block d-md-none mb-fs-5">
                 {{ user.status?.title }}
@@ -40,6 +40,16 @@ export default {
     margin-bottom: 30px;
 }
 
+/*.cut {
+    width: 171px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    text-wrap: nowrap;
+}*/
+
+
+
 @media(max-width:992px) {
     .h5 {
         font-size: 20.5px;
@@ -54,4 +64,11 @@ export default {
         margin: 25px 37px;
     }
 }
+/*
+@media(max-width:500px) {
+    .cut {
+        width: 78px;
+    }
+}
+*/
 </style>

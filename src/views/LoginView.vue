@@ -2,23 +2,22 @@
     <section class="registration_section vh-none vh-md-100">
         <div class="container">
             <div class="row">
-                <div class="col-12 col-md-5 mb-5 mb-md-0">
+                <div class="col-12 col-md-5 mb-5 mb-md-0" v-if="(Object.keys(urlParams).length !== 0)">
 
                     <div class="card border-0">
                         <div class="top">
                             <h2 class="list_title mb-1">Счет на оплату</h2>
-                            <span>Номер счета №{{ urlParams.payment_id }}</span>
+                            <span>Номер счета №{{ urlParams?.payment_id }}</span>
                         </div>
                         <div class="bottom">
                             <span class="d-block mb-1">Сумма к оплате</span>
-                            <h2 class="mb-0">{{ urlParams.summ }} {{currencies?.find(c => c?.id == merchant?.currency_id)?.short_title}}</h2>
+                            <h2 class="mb-0">{{ urlParams?.summ }} {{currencies?.find(c => c?.id == merchant?.currency?.id)?.short_title}}</h2>
                         </div>
                     </div>
                     <span class="info text-center">Для оплаты счета выполните вход в систему</span>
-
                 </div>
 
-                <div class="col-12 col-md-5 mx-auto z-index-2 ">
+                <div class="col-12 col-md-5 z-index-2" :class="Object.keys(urlParams).length !== 0 ? 'mx-auto' : 'ms-auto'">
                     <div class="d-flex" id="myTab" role="tablist">
                         <h2 class="active hover_green m-0" id="home-tab" data-bs-toggle="tab"
                             data-bs-target="#home-tab-pane" type="button" role="tab" aria-controls="home-tab-pane"
@@ -47,19 +46,72 @@
 import Enter from '@/components/login/Enter.vue'
 import Registration from '@/components/login/Registration.vue'
 export default {
-    props: ['urlParams', 'currencies', 'merchant'],
+    props: ['currencies', 'merchant'],
     name: "Login",
     components: {
         Enter,
         Registration,
     },
-    // created() {
-    //     sessionStorage.clear();
-    // },
+    data: () => ({
+        urlParams: {}
+    }),
     methods: {
         login_user() {
             this.$emit('login_user');
+        },
+        //getParams
+        getParams() {
+            var myUrlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+            if (!myUrlParams || (Object.keys(myUrlParams).length === 0)) {
+                console.log('Параметров в сессии нет, пытаемся получить');
+                const searchParams = new URLSearchParams(window.location.search);
+                const params = {};
+                for (const [key, value] of searchParams.entries()) {
+                    params[key] = value;
+                }
+                console.log('Получили эти параметры', params);
+                sessionStorage.setItem('urlParams', JSON.stringify(params));
+                this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+                this.$emit('urlParams', this.urlParams);
+            } else {
+                console.log('Параметры в сессии есть');
+                this.urlParams = JSON.parse(sessionStorage.getItem('urlParams'));
+                console.log('Вот параметры из сессии', this.urlParams);
+                this.$emit('urlParams', this.urlParams);
+            }
+        },
+        checkPaymentId() {
+            return axios
+            .get(this.$api_address + "/merchant_payments/" + this.urlParams.id, {
+            })
+            .then((response) => {
+                if(!response?.data?.data) {
+                    console.log('Нет такого счёта');
+                    this.$router.push("/no-param");
+                }
+                else{
+                    if(response?.data?.data?.status == 'Отмена' || response?.data?.data?.status == 'Успех'){
+                        console.log('Счёт отменён или оплачен');
+                        this.$router.push("/no-param");
+                    }
+                    else {
+                        this.$emit('paramsFromInvoice', response?.data?.data);
+                        localStorage.setItem('minutes_invoice', response?.data?.data?.created_at);
+                        // localStorage.setItem('minutes_invoice', '2024-08-07T17:30:00.000000Z');
+                        console.log('response.data.data.created_at', response?.data?.data);
+
+                    }
+                }
+            })
+            .catch((error) => {
+              console.error("Error fetching user:", error);
+              this.$router.push("/no-param");
+            });
         }
+    },
+    created() {
+        this.getParams();
+        this.checkPaymentId();
     }
 }
 

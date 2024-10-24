@@ -42,7 +42,7 @@
                     <div class="mb-3">
                         <!-- <span class="d-block text-center"><a href="#">Забыли пароль?</a></span> -->
                     </div>                  
-                    <span class="d-block text-center">Нет аккаунта? <a href="#">Создать аккаунт</a></span>
+                    <!-- <span class="d-block text-center">Нет аккаунта? <a href="#">Создать аккаунт</a></span> -->
                 </div>
 </template>
 

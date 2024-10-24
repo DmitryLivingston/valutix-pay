@@ -4,7 +4,7 @@
                             <div class="step_1" v-if="step == 1">
                                 <div class="mb-4 position-relative">
                                     <div class="position-relative">
-                                        <input placeholder="Введите email" autocomplete="email" type="email" class="form-control shadow-none" @input="checkMail"
+                                        <input placeholder="Введите email" autocomplete="email" type="email" class="form-control shadow-none" @input="validateEmail()"
                                              v-model="email" @focus="error = ''">
                                     </div>
                                     <div class="form-text text_warning ps-2 m-0" v-if="error !== '' && !codeSendedMail">{{ error }}</div>
@@ -32,14 +32,14 @@
                                          v-model="phone_code" @focus="error = ''">
                                          <span class="input-group-text bg-white border-0 shadow-none green_link" id="basic-addon2" @click="checkPhone">Отправить еще</span>
                                     </div>
-                                    <div class="form-text text_warning ps-2 m-0" v-if="errorPhoneCode">Неверный код</div>
-                                    <div class="form-text text-green ps-2 m-0" v-if="!isSuccessPhoneCode && !errorPhoneCode">Введите последние 4 цифры номера входящего звонка</div>
-                                    <div class="form-text text-green ps-2 m-0" v-if="isSuccessPhoneCode">Проверка пройдена</div>
+                                    <div class="form-text text_warning ps-2 m-0 mob-margin" v-if="errorPhoneCode">Неверный код</div>
+                                    <div class="form-text text-green ps-2 m-0 mob-margin" v-if="!isSuccessPhoneCode && !errorPhoneCode">Введите последние 4 цифры номера входящего звонка</div>
+                                    <div class="form-text text-green ps-2 m-0 mob-margin" v-if="isSuccessPhoneCode">Проверка пройдена</div>
                                 </div>
                                 <div class="mb-6 step_1--next_btn">
                                     <button :disabled="!isSuccessMailCode || !isSuccessPhoneCode" class="button w-100 mw-100" @click="step = 2">Далее</button>
                                 </div>
-                                <span class="d-block text-center">Уже есть аккаунт? <a href="#" @click="goToEnter">Войти</a></span>
+                                <!-- <span class="d-block text-center">Уже есть аккаунт? <a href="#" @click="goToEnter">Войти</a></span> -->
                             </div>
 
                             <!-- Шаг 2 -->
@@ -112,6 +112,7 @@ export default {
             session_id_mail: '',
             session_id_phone: '',
             i: 0,
+            emailValid: null
         };
     },
     computed: {
@@ -151,35 +152,45 @@ export default {
                 this.step = 2;
             }
         },
+        validateEmail() {
+            console.log('Проверяем');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+(\.[^\s@]+)*$/;
+            this.emailValid = emailRegex.test(this.email);
+            console.log(this.emailValid);
+            if(this.emailValid) {
+                this.checkMail();
+            }
+        },
 
         //Проверка почты
         checkMail() {
-            this.i++;
-            let data = { email: this.email }
-            axios.post(this.$api_address + '/casino_users/register_email', data, {
-                validateStatus: function (status) {
-                    return status < 500;
-                }
-            }).then(response => {
-                this.codeSendedMail = true;
-                if (response.data.errors) {
-                    this.error = response.data.errors.email[0];
-                    this.codeSendedMail = false;
-                    return;
-                }
-                else {
-                    if (response.data.data) {
-                        this.error = '';
-                        this.session_id_mail= response.data.data.session_id;
-                    } else {
-                        console.log('Ошибочка мыла');
-                        this.codeSendedMail = false;
+                console.log('Опа!');
+                this.i++;
+                let data = { email: this.email }
+                axios.post(this.$api_address + '/casino_users/register_email', data, {
+                    validateStatus: function (status) {
+                        return status < 500;
                     }
-                }
+                }).then(response => {
+                    this.codeSendedMail = true;
+                    if (response.data.errors) {
+                        this.error = response.data.errors.email[0];
+                        this.codeSendedMail = false;
+                        return;
+                    }
+                    else {
+                        if (response.data.data) {
+                            this.error = '';
+                            this.session_id_mail= response.data.data.session_id;
+                        } else {
+                            console.log('Ошибочка мыла');
+                            this.codeSendedMail = false;
+                        }
+                    }
 
-            }).catch(function (error) {
-                console.log(error.response);
-            });
+                }).catch(function (error) {
+                    console.log(error.response);
+                });
         },
 
         //Проверка телефона
@@ -280,7 +291,7 @@ export default {
                 .then(response => {
                     if (response.data.data) {
                         sessionStorage.setItem('user_ID', response.data.data.id);
-                        sessionStorage.setItem('user_token', response.data.data.token['token']);
+                        sessionStorage.setItem('user_token', response.data.data.token);
                         sessionStorage.setItem('status_id', response.data.data.status['id']);
                         this.$emit('login_user');
                     } else {
@@ -524,5 +535,11 @@ button:disabled {
         font-size: 12px;
     }
 
+}
+
+@media(max-width: 365px) {
+    .mob-margin {
+        bottom: -35px !important;
+    }
 }
 </style>
